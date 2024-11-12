@@ -1,30 +1,51 @@
-const ALBUM_WIDTH = 2.5;
-const ALBUM_HEIGHT = 2.5;
-const ALBUM_SPACING = 0.8;
-const ALBUM_TILT = -0.5;
+const ALBUM_WIDTH = 2;
+const ALBUM_HEIGHT = 2;
+const ALBUM_SPACING = 0.7;
+const ALBUM_TILT = -0.75;
 const TRANSITION_DURATION = 1;
 const TRANSITION_EASE = "power2.out";
 const INITIAL_DELAY = 0.2;
 const LOADING_DURATION = 2;
 const ALBUM_CORNER_RADIUS = 0.1;
+const Z_SPACING = 0.05;
 
 let isLoading = true;
 let isClicked = false;
 
 const albums = [
     {
-        title: "Album 1",
+        title: "hues",
         image: "album1.png",
         description: "First album description"
     },
     {
         title: "Album 2",
-        image: "https://picsum.photos/500/500?random=2",
+        image: "album2.png",
         description: "Second album description"
     },
     {
         title: "Album 3",
-        image: "https://picsum.photos/500/500?random=3",
+        image: "album3.png",
+        description: "Second album description"
+    },
+    {
+        title: "Album 3",
+        image: "album9.png",
+        description: "Third album description"
+    },
+    {
+        title: "Album 3",
+        image: "album7.png",
+        description: "Third album description"
+    },
+    {
+        title: "Album 3",
+        image: "album8.png",
+        description: "Third album description"
+    },
+    {
+        title: "Album 3",
+        image: "album6.png",
         description: "Third album description"
     }
 ];
@@ -75,21 +96,21 @@ function loadAlbums() {
     const textureLoader = new THREE.TextureLoader();
     const totalHeight = (albums.length - 1) * ALBUM_SPACING;
     const startY = totalHeight / 2;
-    const material = new THREE.MeshBasicMaterial({ 
-        transparent: true,
-        opacity: 0.9,
-        depthWrite: false,
-        depthTest: true,
-    });
     
     let loadedCount = 0;
+    let loadedMeshes = [];
 
     albums.forEach((album, index) => {
         textureLoader.load(album.image, (texture) => {
             texture.minFilter = THREE.LinearFilter;
             texture.magFilter = THREE.LinearFilter;
             texture.flipY = false;
-            texture.generateMipmaps = false; // Prevent mipmap artifacts
+            texture.generateMipmaps = false;
+
+
+            texture.matrixAutoUpdate = false;
+            texture.matrix.scale(1, 1);
+            texture.needsUpdate = true;
 
             const roundedRectShape = createRoundedRectShape(ALBUM_WIDTH, ALBUM_HEIGHT, ALBUM_CORNER_RADIUS);
             const geometry = roundedRectShape;
@@ -97,65 +118,76 @@ function loadAlbums() {
                 map: texture,
                 transparent: true,
                 opacity: 0,
-                depthWrite: false, // Prevent depth writing artifacts
+                depthWrite: false,
                 depthTest: true
             });
 
             const mesh = new THREE.Mesh(geometry, material);
-
-            // Initial state
             const yPos = startY - (index * ALBUM_SPACING);
-            mesh.position.y = yPos - 10;
-            mesh.position.z = -index * 0.15;
-            mesh.position.x = -5;
-            mesh.rotation.x = ALBUM_TILT;
-            mesh.rotation.y = Math.PI * 0.5;
-            mesh.scale.set(0.5, 0.5, 0.5);
-            mesh.renderOrder = albums.length - index; // Ensure proper render order
+            const zPos = -index * Z_SPACING;
+            
 
+
+            // Store initial positions consistently
             mesh.userData.albumData = album;
             mesh.userData.index = index;
             mesh.userData.originalY = yPos;
             mesh.userData.originalZ = -index * 0.15;
             mesh.userData.originalRotation = ALBUM_TILT;
 
-            albumMeshes.push(mesh);
-            sceneContainer.add(mesh);
+            // Set initial state
+            mesh.userData.albumData = album;
+            mesh.userData.index = index;
+            mesh.userData.originalY = yPos;
+            mesh.userData.originalZ = -index * 0.15;
+            mesh.userData.originalRotation = ALBUM_TILT;
+            mesh.renderOrder = albums.length - index;
+            
+            loadedMeshes[index] = mesh; // Store in order
+            loadedCount++;
 
-            // Modified entrance animation
-            const timeline = gsap.timeline({
-                delay: index * INITIAL_DELAY,
-                onStart: () => {
-                    mesh.visible = true; // Ensure visibility
-                }
-            });
+            // Only add meshes when all are loaded
+            if (loadedCount === albums.length) {
+                loadedMeshes.forEach(mesh => {
+                    albumMeshes.push(mesh);
+                    sceneContainer.add(mesh);
+                    
+                    // Entrance animation
+                    const timeline = gsap.timeline({
+                        delay: mesh.userData.index * INITIAL_DELAY,
+                        onStart: () => {
+                            mesh.visible = true;
+                        }
+                    });
 
-            timeline
-                .to(mesh.position, {
-                    y: yPos,
-                    x: 0,
-                    duration: 1.5,
-                    ease: "elastic.out(1, 0.75)"
-                })
-                .to(mesh.rotation, {
-                    y: 0,
-                    duration: 1.2,
-                    ease: "power2.out"
-                }, "-=1.5")
-                .to(mesh.scale, {
-                    x: 1,
-                    y: 1,
-                    z: 1,
-                    duration: 1.2,
-                    ease: "back.out(1.7)"
-                }, "-=1.2")
-                .to(mesh.material, {
-                    opacity: 0.9,
-                    duration: 0.8,
-                    ease: "power2.out"
-                }, "-=0.8");
+                    timeline
+                        .to(mesh.position, {
+                            y: mesh.userData.originalY,
+                            x: 0,
+                            z: mesh.userData.originalZ,
+                            duration: 1.5,
+                            ease: "elastic.out(1, 0.75)"
+                        })
+                        .to(mesh.rotation, {
+                            x: ALBUM_TILT,
+                            y: 0,
+                            duration: 1.2,
+                            ease: "power2.out"
+                        }, "-=1.5")
+                        .to(mesh.scale, {
+                            x: 1,
+                            y: 1,
+                            z: 1,
+                            duration: 1.2,
+                            ease: "back.out(1.7)"
+                        }, "-=1.2")
+                        .to(mesh.material, {
+                            opacity: 0.9,
+                            duration: 0.8,
+                            ease: "power2.out"
+                        }, "-=0.8");
+                });
 
-            if (++loadedCount === albums.length) {
                 setTimeout(() => {
                     isLoading = false;
                 }, (albums.length * INITIAL_DELAY + 1.5) * 1000);
@@ -336,7 +368,7 @@ function selectNewAlbum(clickedMesh) {
 
     // Move scene container left
     gsap.to(sceneContainer.position, {
-        x: -3,
+        x: -2,
         duration: TRANSITION_DURATION,
         ease: TRANSITION_EASE
     });
@@ -353,8 +385,7 @@ function selectNewAlbum(clickedMesh) {
         ease: TRANSITION_EASE
     });
 
-    
-
+    // Push other albums vertically and reduce opacity
     albumMeshes.forEach((mesh) => {
         if (mesh !== clickedMesh) {
             const meshIndex = mesh.userData.index;
@@ -363,12 +394,12 @@ function selectNewAlbum(clickedMesh) {
             
             if (isAbove || isBelow) {
                 gsap.to(mesh.position, {
-                    y: mesh.userData.originalY + (isAbove ? 0.8 : -0.8),
+                    y: mesh.userData.originalY + (isAbove ? 1.2 : -1.2),
                     duration: TRANSITION_DURATION,
                     ease: TRANSITION_EASE
                 });
                 gsap.to(mesh.material, {
-                    opacity: 0.1,
+                    opacity: 0.3,
                     duration: TRANSITION_DURATION,
                     ease: TRANSITION_EASE
                 });
@@ -376,6 +407,13 @@ function selectNewAlbum(clickedMesh) {
         }
     });
 
+    // Calculate and set album info position
+    const screenY = (clickedMesh.position.y / 5) * window.innerHeight + (window.innerHeight / 2);
+    const albumInfo = document.getElementById('albumInfo');
+    albumInfo.style.top = `22%`;
+    albumInfo.style.left = '60%';
+    
+    // Update album info content
     document.getElementById('albumTitle').textContent = albumData.title;
     document.getElementById('albumDescription').textContent = albumData.description;
     document.getElementById('albumInfo').style.display = 'block';
